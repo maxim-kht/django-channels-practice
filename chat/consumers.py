@@ -1,7 +1,3 @@
-import json
-
-from django.http import HttpResponse
-from channels.handler import AsgiHandler
 from channels import Group
 from channels.sessions import channel_session
 
@@ -25,19 +21,22 @@ from channels.sessions import channel_session
 
 
 # Connected to websocket.connect
-def ws_add(message):
-    print 'ws_add'
-    print message.reply_channel
+@channel_session
+def ws_connect(message):
+    print 'ws_connect'
     # Work out room name from path (ignore slashes)
     room = message.content['path'].strip('/')
-    Group('chat').add(message.reply_channel)
+    # Save room in session and add us to the group
+    message.channel_session['room'] = room
+    Group('chat-%s' % room).add(message.reply_channel)
 
 
 # Connected to websocket.receive
 def ws_message(message):
     print 'ws_message'
     print message.content
-    Group('chat').send({
+    room = message.channel_session['room']
+    Group('chat-%s' % room).send({
         'text': '[user] %s' % message.content['text'],
     })
 
@@ -45,4 +44,4 @@ def ws_message(message):
 # Connected to websocket.disconnect
 def ws_disconnect(message):
     print 'ws_disconnect'
-    Group('chat').discard(message.reply_channel)
+    Group('chat-%s' % message.channel_session['room']).discard(message.reply_channel)
