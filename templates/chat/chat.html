@@ -12,6 +12,7 @@
     <title>Django Channels Chat Example</title>
     <!-- BOOTSTRAP CORE STYLE CSS -->
     <link href="{% static 'css/bootstrap.css' %}" rel="stylesheet" />
+    <script src="{% static 'js/jquery-3.1.1.min.js' %}"></script>
 
 </head>
 <body style="font-family:Verdana">
@@ -23,7 +24,7 @@
                 <div class="panel panel-info">
                     <div class="panel-heading">RECENT CHAT HISTORY</div>
                     <div class="panel-body">
-                        <ul class="media-list">
+                        <ul id="chat-box" class="media-list">
                             <li class="media">
                                 <div class="media-body">
                                     <div class="media">
@@ -88,9 +89,9 @@
                     </div>
                     <div class="panel-footer">
                     <div class="input-group">
-                        <input type="text" class="form-control" placeholder="Enter Message" />
+                        <input type="text" id="text-input" class="form-control" placeholder="Enter Message" />
                             <span class="input-group-btn">
-                                <button class="btn btn-info" type="button">SEND</button>
+                                <button id="send-button" class="btn btn-info" type="button">SEND</button>
                             </span>
                         </div>
                     </div>
@@ -131,12 +132,46 @@
                                     </div>
                                 </div>
                             </li>
-                            <li class="media">
                         </ul>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    <script>
+        $(document).ready(function () {
+            var socket = new WebSocket("ws://" + window.location.host + "/chat/");
+
+            $("#send-button").click(function () {
+
+                socket.onmessage = function (e) {
+                    var chat_box = $('#chat-box');
+                    chat_box.append(
+                        '<li class="media">' + 
+                            '<div class="media-body">' + 
+                                '<div class="media">' + 
+                                    '<div class="media-body" >' + e.data + '<br />' + 
+                                        '<small class="text-muted">Test User 1 | 23rd June at 5:00pm</small>' + 
+                                        '<hr />' + 
+                                    '</div>' + 
+                                '</div>' + 
+                            '</div>' + 
+                        '</li>'
+                    );
+                    $('#text-input').val('');
+                };
+
+                socket.onopen = function () {
+                    var text_input = $('#text-input').val();
+                    socket.send(text_input);
+                };
+
+                // Call onopen directly if socket is already open
+                if (socket.readyState == WebSocket.OPEN) {
+                    socket.onopen();
+                }
+            });
+        });
+    </script>
 </body>
 </html>
