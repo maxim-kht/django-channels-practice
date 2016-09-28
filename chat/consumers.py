@@ -1,30 +1,35 @@
+from django.contrib.auth.models import User
+
 from channels import Group
-from channels.sessions import channel_session
+from channels.auth import channel_session_user, channel_session_user_from_http
+
+from .models import ChatMessage
 
 
-@channel_session
+@channel_session_user_from_http
 def ws_connect(message):
-    print 'ws_connect'
-    # Work out room name from path (ignore slashes)
-    room = message.content['path'].strip('/')
-    if not room:
-        room = 'default_room'
-    # Save room in session and add us to the group
-    message.channel_session['room'] = room
-    Group('chat-%s' % room).add(message.reply_channel)
+    room = message.content['path'].replace('/', '')
+    Group("chat-%s" % room).add(message.reply_channel)
 
 
-@channel_session
-def ws_message(message):
-    print 'ws_message'
-    print message.content
-    room = message.channel_session['room']
-    Group('chat-%s' % room).send({
-        'text': '[user] %s' % message['text'],
+@channel_session_user
+def ws_receive(message):
+    print 'Connected to websocket.receive'
+    room = message.content['path'].replace('/', '')
+
+    ChatMessage.objects.create(
+        room=room,
+        message=message['text'],
+        user=User.objects.get(username=message.user.username)
+    )
+
+    Group("chat-%s" % room).send({
+        "text": '%s:%s' % (message.user.username, message['text']),
     })
 
 
-@channel_session
+@channel_session_user
 def ws_disconnect(message):
-    print 'ws_disconnect'
-    Group('chat-%s' % message.channel_session['room']).discard(message.reply_channel)
+    print 'Connected to websocket.disconnect'
+    room = message.content['path'].replace('/', '')
+    Group("chat-%s" % room).discard(message.reply_channel)
